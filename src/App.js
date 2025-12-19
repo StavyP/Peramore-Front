@@ -1,1045 +1,670 @@
 import React, { useState, useEffect } from 'react';
-// Importation des icônes
-import { Plus, X, Search, SortAsc, SortDesc, LayoutGrid, List, BarChart, Upload, Download } from 'lucide-react'; 
-import './App.css'; 
+import { Menu, X, Scissors, Sparkles, Filter, ShoppingBag, Camera } from 'lucide-react';
 
-function App() {
-  const getTodayDate = () => new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+const PeramoreWebsite = () => {
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylfjCuHnBv9DLy1sepEwGo-yd7QXMf5oZiWGE9lxj4Xgg6ZSGnKmMxRfGHfkgrIBzV/exec";
 
-  const initialNewMovieState = {
-    title: '',
-    poster: '',
-    rating: '5', 
-    review: '',
-    // --- VO est coché par défaut ---
-    versions: { VF: false, VO: true }, 
-    // ---------------------------------
-    year: new Date().getFullYear(),
-    duration: '', // Ex: "120 min"
-    director: '',
-    actors: '',
-    genre: '', 
-    platform: '',
-    tags: [],
-    watched: true,
-    dateWatched: getTodayDate(),
-  };
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    message: '',
+    preferenceContact: 'email'
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState('');
+  const [products, setProducts] = useState([]);
+  const [galerieItems, setGalerieItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('Tout');
+  const [isLoading, setIsLoading] = useState(true);
+  const [visibleElements, setVisibleElements] = useState(new Set());
   
-  const [movies, setMovies] = useState([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedMovie, setSelectedMovie] = useState(null);
-  const [sortBy, setSortBy] = useState('dateWatched'); 
-  const [sortDirection, setSortDirection] = useState('desc'); // État pour la direction de tri
-  const [searchTerm, setSearchTerm] = useState('');
-  const [newMovie, setNewMovie] = useState(initialNewMovieState);
-  const [showStats, setShowStats] = useState(false);
-  const [viewMode, setViewMode] = useState('grid');
-  const [filterRating, setFilterRating] = useState('all');
-  const [filterVersion, setFilterVersion] = useState('all');
-  const [filterGenre, setFilterGenre] = useState('all');
-  const [filterWatched, setFilterWatched] = useState('all');
+  // Modal Image
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
-  const predefinedTags = ['favori', 'revoir', 'decu', 'culte', 'oscar', 'surprise'];
-
-  // Charger les données au démarrage
+  const [stitches, setStitches] = useState([]);
+  
   useEffect(() => {
-    loadMovies();
+    const newStitches = Array.from({ length: 15 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      delay: Math.random() * 5,
+      duration: 20 + Math.random() * 15
+    }));
+    setStitches(newStitches);
   }, []);
 
-  const loadMovies = () => {
-    try {
-      const data = localStorage.getItem('movies-list');
-      if (data) {
-        setMovies(JSON.parse(data));
-      }
-    } catch (error) {
-      console.log('Aucune donnée sauvegardée trouvée');
-    }
-  };
-
-  const saveMovies = (updatedMovies) => {
-    try {
-      localStorage.setItem('movies-list', JSON.stringify(updatedMovies));
-    } catch (error) {
-      console.error('Erreur de sauvegarde:', error);
-    }
-  };
-  
-  /**
-   * Fonction pour exporter les données du localStorage vers un fichier JSON.
-   */
-  const handleExportMovies = () => {
-    const data = localStorage.getItem('movies-list');
-    if (!data || data === '[]') {
-      alert("Aucune donnée à exporter.");
-      return;
-    }
-
-    const filename = `sequence_export_${getTodayDate()}.json`;
-    // Création d'un Blob pour le téléchargement
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    // Création d'un lien invisible pour déclencher le téléchargement
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    alert(`Données exportées dans ${filename}!`);
-  };
-
-  /**
-   * Fonction pour importer les données à partir d'un fichier JSON.
-   */
-  const handleImportMovies = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Vérification du type de fichier de base
-    if (file.type !== "application/json" && !file.name.toLowerCase().endsWith('.json')) {
-      alert("Veuillez sélectionner un fichier JSON valide.");
-      // Réinitialiser le champ de fichier après l'erreur
-      event.target.value = ''; 
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedData = JSON.parse(e.target.result);
-        
-        // Validation simple: doit être un tableau
-        if (!Array.isArray(importedData)) {
-            alert("Erreur: Le contenu du fichier JSON n'est pas un format de liste de films valide.");
-            event.target.value = '';
-            return;
-        }
-
-        const overwrite = window.confirm(
-          `Êtes-vous sûr de vouloir IMPORTER ${importedData.length} films ?\nCeci va REMPLACER toutes vos données actuelles. Continuer ?`
-        );
-
-        if (overwrite) {
-          // Mise à jour du state et du localStorage
-          setMovies(importedData);
-          saveMovies(importedData);
-          alert(`Succès! ${importedData.length} films importés.`);
-        }
-        
-      } catch (error) {
-        console.error("Erreur lors de la lecture ou de l'analyse du fichier:", error);
-        alert("Erreur lors de l'importation. Assurez-vous que le fichier est un JSON valide.");
-      }
-      // Toujours réinitialiser le champ de fichier pour permettre un nouvel import
-      event.target.value = ''; 
-    };
-    reader.readAsText(file);
-  };
-
-  const addMovie = () => {
-    if (!newMovie.title || !newMovie.poster) return;
-    
-    const movie = {
-      id: Date.now(),
-      ...newMovie, 
-      dateAdded: new Date().toISOString()
-    };
-    
-    const updatedMovies = [...movies, movie];
-    setMovies(updatedMovies);
-    saveMovies(updatedMovies);
-    
-    // Réinitialiser la date du jour pour l'état initial (prêt pour un nouvel ajout)
-    setNewMovie({...initialNewMovieState, dateWatched: getTodayDate()}); 
-    setShowAddModal(false);
-  };
-
-  const updateMovie = (id, updates) => {
-    // Logique pour mettre à jour automatiquement la date de visionnage
-    if (updates.watched === true && !updates.dateWatched) {
-        // Le film passe à 'Vu' (true) -> On ajoute la date du jour si elle n'est pas déjà dans les updates.
-        updates.dateWatched = getTodayDate();
-    } else if (updates.watched === false) {
-        // Le film passe à 'À voir' (false) -> On retire la date de visionnage.
-        updates.dateWatched = null; // null pour l'objet movie (stockage)
-    }
-    
-    const updatedMovies = movies.map(m => m.id === id ? { ...m, ...updates } : m);
-    setMovies(updatedMovies);
-    saveMovies(updatedMovies);
-    
-    // Si le film sélectionné est mis à jour, on met à jour l'état local du modal aussi
-    if (selectedMovie && selectedMovie.id === id) {
-        setSelectedMovie(prev => ({ ...prev, ...updates }));
-    }
-  };
-
-  const deleteMovie = (id) => {
-    const updatedMovies = movies.filter(m => m.id !== id);
-    setMovies(updatedMovies);
-    saveMovies(updatedMovies);
-    setSelectedMovie(null);
-  };
-
-const getRatingColor = (rating) => {
-  if (rating >= 8) return 'rating-excellent';
-  if (rating >= 6) return 'rating-good';
-  if (rating >= 4) return 'rating-average';
-  return 'rating-poor';
-};
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const datePart = dateString.includes('T') ? dateString.split('T')[0] : dateString;
-    const date = new Date(datePart.replace(/-/g, '/')); // Correction pour la compatibilité
-    if (isNaN(date)) return dateString;
-
-    return date.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric'
-    });
-  };
-
-  /**
-   * Extrait la durée en minutes d'une chaîne (ex: "120 min")
-   * @param {string} durationString 
-   * @returns {number} Durée en minutes
-   */
-  const extractMinutes = (durationString) => {
-    if (!durationString) return 0;
-    const match = durationString.match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-  };
-
-  /**
-   * Convertit une durée en minutes au format "XXh XXm" en ajoutant un zéro aux minutes si nécessaire
-   * @param {string} durationString 
-   * @returns {string} Durée formatée avec padding (ex: 1h05m)
-   */
-  const formatDuration = (durationString) => {
-    const totalMinutes = extractMinutes(durationString);
-    if (totalMinutes === 0) return 'N/A';
-    
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    
-    let parts = [];
-    if (hours > 0) {
-      parts.push(`${hours}h`);
-    }
-    
-    // Ajout du zéro en tête pour les minutes si elles sont supérieures à 0
-    if (minutes > 0) {
-      // Utilise padStart pour s'assurer d'avoir au moins deux chiffres (ex: 5 devient 05)
-      const paddedMinutes = String(minutes).padStart(2, '0'); 
-      parts.push(`${paddedMinutes}m`);
-    }
-    
-    // Si la durée est inférieure à une heure, on affiche juste les minutes (ex: 45m)
-    if (parts.length === 0 && totalMinutes > 0) {
-         const paddedMinutes = String(totalMinutes).padStart(2, '0'); 
-         return `${paddedMinutes}m`;
-    }
-
-    return parts.join('');
-  };
-  
-  /**
-   * Extrait tous les genres uniques en divisant les chaînes par virgule.
-   * @returns {string[]} Liste des genres uniques.
-   */
-  const getAllGenres = () => {
-    const genresSet = new Set();
-    movies.forEach(movie => {
-      if (movie.genre) {
-        // Nettoyer et diviser la chaîne de genres par virgule
-        const movieGenres = movie.genre
-          .split(',')
-          .map(g => g.trim())
-          .filter(g => g.length > 0);
-        
-        movieGenres.forEach(g => genresSet.add(g));
-      }
-    });
-    return Array.from(genresSet).sort();
-  };
-  
-  const allGenres = getAllGenres();
-
-  const getStats = () => {
-    const total = movies.length;
-    const watched = movies.filter(m => m.watched !== false).length;
-    const avgRating = watched > 0 ? (movies.filter(m => m.watched !== false).reduce((sum, m) => sum + m.rating, 0) / watched).toFixed(1) : 0;
-    
-const byRating = {
-  excellent: movies.filter(m => m.watched !== false && m.rating >= 8).length,
-  good: movies.filter(m => m.watched !== false && m.rating >= 6 && m.rating < 8).length,
-  average: movies.filter(m => m.watched !== false && m.rating >= 4 && m.rating < 6).length,
-  poor: movies.filter(m => m.watched !== false && m.rating < 4).length
-};
-    
-    // Pour les stats, on compte par genre individuel
-    const genreCounts = {};
-    movies.forEach(movie => {
-      if (movie.genre) {
-        movie.genre.split(',').map(g => g.trim()).filter(Boolean).forEach(g => {
-          genreCounts[g] = (genreCounts[g] || 0) + 1;
-        });
-      }
-    });
-    const byGenre = Object.entries(genreCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
-
-    const topMovies = [...movies].filter(m => m.watched !== false).sort((a, b) => b.rating - a.rating).slice(0, 5);
-    
-    return { total, watched, toWatch: total - watched, avgRating, byRating, byGenre, topMovies };
-  };
-
-  const toggleNewMovieTag = (tag) => {
-    setNewMovie(prev => ({
-      ...prev,
-      tags: prev.tags.includes(tag) 
-        ? prev.tags.filter(t => t !== tag)
-        : [...prev.tags, tag]
-    }));
-  };
-
-  const toggleSelectedMovieTag = (tag) => {
-    const newTags = selectedMovie.tags?.includes(tag)
-      ? selectedMovie.tags.filter(t => t !== tag)
-      : [...(selectedMovie.tags || []), tag];
-    setSelectedMovie({...selectedMovie, tags: newTags});
-    updateMovie(selectedMovie.id, {tags: newTags});
-  };
-
-  const getSortedMovies = () => {
-    let filtered = movies.filter(m => {
-      const matchSearch = m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          m.director?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          m.actors?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          m.review?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchRating = filterRating === 'all' || 
-                          (filterRating === 'excellent' && m.rating >= 8) ||
-                          (filterRating === 'good' && m.rating >= 6 && m.rating < 8) ||
-                          (filterRating === 'average' && m.rating >= 4 && m.rating < 6) ||
-                          (filterRating === 'poor' && m.rating < 4);
-      
-      const matchVersion = filterVersion === 'all' ||
-                           (filterVersion === 'VF' && m.versions?.VF) ||
-                           (filterVersion === 'VO' && m.versions?.VO);
-      
-      // LOGIQUE DE FILTRAGE PAR GENRE
-      const matchGenre = filterGenre === 'all' || 
-                         (m.genre && m.genre.split(',').map(g => g.trim()).includes(filterGenre));
-      
-      const matchWatched = filterWatched === 'all' ||
-                           (filterWatched === 'watched' && m.watched !== false) ||
-                           (filterWatched === 'toWatch' && m.watched === false);
-      
-      return matchSearch && matchRating && matchVersion && matchGenre && matchWatched;
-    });
-
-    const sortFn = (a, b) => {
-      let comparison = 0;
-      
-      switch(sortBy) {
-        case 'rating':
-          comparison = (b.rating || 0) - (a.rating || 0);
-          break;
-        case 'title':
-          comparison = a.title.localeCompare(b.title);
-          break;
-        case 'year':
-          comparison = (b.year || 0) - (a.year || 0);
-          break;
-        case 'duration': // TRI PAR DURÉE
-          comparison = extractMinutes(b.duration) - extractMinutes(a.duration);
-          break;
-        case 'dateWatched':
-          // Correction pour utiliser la date de visionnage uniquement. 
-          // Le || 0 garantit que les films "À voir" (dateWatched est null ou '') sont triés à la fin.
-          const dateA = new Date(a.dateWatched || 0); 
-          const dateB = new Date(b.dateWatched || 0);
-          
-          comparison = dateB.getTime() - dateA.getTime();
-          
-          // NOUVEAU: Si les dates sont identiques (même jour), trier par ID (ordre de saisie).
-          if (comparison === 0) {
-              comparison = b.id - a.id; 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisibleElements((prev) => new Set([...prev, entry.target.id]));
           }
-          break;
-        case 'dateAdded': 
-        default:
-          const dateA_Add = new Date(a.dateAdded || 0);
-          const dateB_Add = new Date(b.dateAdded || 0);
-          comparison = dateB_Add.getTime() - dateA_Add.getTime();
-          break;
-      }
-
-      // Appliquer la direction
-      return sortDirection === 'desc' ? comparison : -comparison;
-    };
-
-    return filtered.sort(sortFn);
-  };
-
-  const sortedAndFilteredMovies = getSortedMovies();
-
-  // --- Composants de rendu ---
-
-  const TagsDisplay = ({ tags }) => (
-    tags && tags.length > 0 && (
-      <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
-        {tags.map(tag => (
-          <span key={tag} className="tag-badge">
-            {tag.charAt(0).toUpperCase() + tag.slice(1)}
-          </span>
-        ))}
-      </div>
-    )
-  );
-
-const StatusButtons = ({ watched, onToggleWatched }) => {
-    // Fonction qui inclut la nouvelle logique : si on passe à 'Vu', on ajoute la date du jour
-    const handleToggle = (newWatchedState) => {
-        let updates = { watched: newWatchedState };
-        onToggleWatched(updates); 
-    };
-
-    return (
-        <div style={{ marginBottom: '16px' }}>
-            <label className="form-label">Statut</label>
-            <div className="version-buttons">
-                {/* --- Bouton Vu --- */}
-                <button
-                    // Si on clique sur 'Vu' (true)
-                    onClick={() => handleToggle(true)}
-                    className={`btn-version ${watched !== false ? 'active btn-version-vf' : 'btn-version-vf'}`}
-                    style={{ 
-                      background: watched !== false ? '#2563eb' : '#2d3748',
-                      border: watched !== false ? 'none' : '1px solid #4a5568'
-                    }}
-                >
-                    ✅ Vu
-                </button>
-                {/* --- Bouton À voir --- */}
-                <button
-                    // Si on clique sur 'À voir' (false)
-                    onClick={() => handleToggle(false)}
-                    className={`btn-version ${watched === false ? 'active btn-version-vo' : 'btn-version-vo'}`}
-                    style={{ 
-                      background: watched === false ? '#7c3aed' : '#2d3748',
-                      border: watched === false ? 'none' : '1px solid #4a5568'
-                    }}
-                >
-                    📋 À voir
-                </button>
-            </div>
-        </div>
+        });
+      },
+      { threshold: 0.1 }
     );
-  };
 
-  const MovieCard = ({ movie }) => (
-    <div key={movie.id} className="movie-card" onClick={() => setSelectedMovie(movie)}>
-      <img src={movie.poster} alt={movie.title} />
-      <div className="movie-overlay">
-        {movie.watched !== false && (
-          <div className={`movie-rating ${getRatingColor(movie.rating)}`}>
-            {movie.rating}/10
-          </div>
-        )}
+    document.querySelectorAll('[data-animate]').forEach((el) => {
+      observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch(`${SCRIPT_URL}?action=get_products`);
+      const data = await response.json();
+      
+      if (data) {
+        const collectionItems = data.filter(item => item.type === 'collection');
+        const galerieImages = data.filter(item => item.type === 'galerie');
         
-        <div className="movie-info">
-          <h3 className="movie-title">{movie.title}</h3>
-          {movie.year && <p style={{ fontSize: '0.65rem', color: '#9ca3af', marginBottom: '4px' }}>({movie.year})</p>}
-          
-          {/* AFFICHAGE VERSIONS ET DURÉE AMÉLIORÉ */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-            <div className="movie-versions">
-              {movie.versions?.VF && <span className="version-badge version-vf">VF</span>}
-              {movie.versions?.VO && <span className="version-badge version-vo">VO</span>}
-            </div>
-            {movie.duration && (
-                <span className="duration-badge"> {/* Utilisation de la nouvelle classe CSS pour la durée */}
-                    {formatDuration(movie.duration)}
-                </span>
-            )}
-          </div>
-          {/* FIN DU BLOC */}
-
-          <TagsDisplay tags={movie.tags} />
-        </div>
-      </div>
-    </div>
-  );
-
-  const MovieListItem = ({ movie }) => (
-    <div key={movie.id} className="movie-list-item" onClick={() => setSelectedMovie(movie)}>
-      <img src={movie.poster} alt={movie.title} className="list-poster" />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h3 className="movie-title" style={{ fontSize: '1rem', webkitLineClamp: '1' }}>
-          {movie.title} 
-          {movie.year && <span style={{ fontWeight: 'normal', color: '#9ca3af' }}> ({movie.year})</span>}
-        </h3>
-        <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>
-          Vu le: {movie.watched !== false && movie.dateWatched ? formatDate(movie.dateWatched) : 'N/A'}
-          {movie.duration && (
-            <span style={{ marginLeft: '12px', color: '#6b7280' }}> | Durée: {formatDuration(movie.duration)}</span>
-          )}
-        </p>
-        <TagsDisplay tags={movie.tags} />
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-        {movie.watched !== false ? (
-          <div className={`movie-rating ${getRatingColor(movie.rating)}`} style={{ position: 'static', padding: '4px 12px', boxShadow: 'none' }}>
-            {movie.rating}/10
-          </div>
-        ) : (
-          <span style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: '0.875rem' }}>À voir</span>
-        )}
-        <div className="movie-versions" style={{ gap: '4px' }}>
-          {movie.versions?.VF && <span className="version-badge version-vf">VF</span>}
-          {movie.versions?.VO && <span className="version-badge version-vo">VO</span>}
-        </div>
-      </div>
-    </div>
-  );
-  
-  // --- Fonction dédiée pour gérer le statut dans le Modal d'Ajout ---
-  const handleNewMovieStatusToggle = (updates) => {
-    let newUpdates = updates;
-    if (updates.watched === true) {
-      // Si passe à Vu, ajouter la date du jour
-      newUpdates = {...updates, dateWatched: getTodayDate()};
-    } else if (updates.watched === false) {
-      // Si passe à À voir, vider l'input date
-      newUpdates = {...updates, dateWatched: ''}; 
+        setProducts(collectionItems);
+        setGalerieItems(galerieImages);
+        const uniqueCategories = [...new Set(collectionItems.map(p => p.categorie))];
+        setCategories(uniqueCategories);
+      }
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Erreur:', error);
+      setProducts([]);
+      setGalerieItems([]);
+      setCategories([]);
+      setIsLoading(false);
     }
-    setNewMovie(prev => ({...prev, ...newUpdates}));
   };
-  // ------------------------------------------------------------------
 
-  // --- RENDU PRINCIPAL ---
+  const filteredProducts = selectedCategory === 'Tout' 
+    ? products 
+    : products.filter(p => p.categorie === selectedCategory);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitStatus('');
+
+    // Nettoyer le numéro de téléphone pour garder le format avec le 0
+    const cleanPhone = formData.phone.trim();
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'contact',
+          name: formData.name,
+          email: formData.email,
+          phone: cleanPhone, // Envoi du téléphone nettoyé
+          message: formData.message,
+          preferenceContact: formData.preferenceContact
+        })
+      });
+
+      setSubmitStatus('success');
+      setFormData({ name: '', email: '', phone: '', message: '', preferenceContact: 'email' });
+    } catch (error) {
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    element?.scrollIntoView({ behavior: 'smooth' });
+    setIsMenuOpen(false);
+  };
+
+  const openImage = (image) => {
+    setSelectedImage(image);
+    setShowImageModal(true);
+  };
 
   return (
-    <div className="app">
-      <div className="container">
-        {/* Header */}
-        <div className="header">
-          <h1 className="title">Séquence</h1> {/* Nouveau nom */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={() => setShowStats(!showStats)} className="btn btn-primary" title="Statistiques">
-              <BarChart size={20} />
-              Stats
-            </button>
-            <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-              <Plus size={20} />
-              Ajouter un film
-            </button>
+    <div className="font-['Poppins'] bg-gradient-to-br from-slate-50 to-stone-100 relative overflow-hidden">
+      {/* Animations de fond */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {stitches.map(stitch => (
+          <div
+            key={stitch.id}
+            className="absolute opacity-5"
+            style={{
+              left: `${stitch.left}%`,
+              top: `${stitch.top}%`,
+              animation: `float ${stitch.duration}s ease-in-out infinite`,
+              animationDelay: `${stitch.delay}s`
+            }}
+          >
+            {stitch.id % 3 === 0 ? (
+              <Scissors className="w-12 h-12 text-slate-700" />
+            ) : (
+              <div className="w-3 h-3 bg-slate-400 rounded-full shadow-sm" />
+            )}
           </div>
-        </div>
-
-        {/* Controls */}
-        <div className="controls">
-          <div className="search-container">
-            <Search className="search-icon" size={20} />
-            <input
-              type="text"
-              placeholder="Rechercher un film, réalisateur, acteur..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
-          
-          {/* Filtres */}
-<select value={filterRating} onChange={(e) => setFilterRating(e.target.value)} className="sort-select">
-  <option value="all">Toutes notes</option>
-  <option value="excellent">⭐ Excellent (8+)</option>
-  <option value="good">👍 Bien (6-7.5)</option>
-  <option value="average">😐 Moyen (4-5.5)</option>
-  <option value="poor">👎 Décevant (-4)</option>
-</select>
-
-          <select value={filterVersion} onChange={(e) => setFilterVersion(e.target.value)} className="sort-select">
-            <option value="all">Toutes versions</option>
-            <option value="VF">VF</option>
-            <option value="VO">VO</option>
-          </select>
-
-          {/* Filtre Genre basé sur tous les genres trouvés après split/trim */}
-          {allGenres.length > 0 && (
-            <select value={filterGenre} onChange={(e) => setFilterGenre(e.target.value)} className="sort-select">
-              <option value="all">Tous genres</option>
-              {allGenres.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          )}
-
-          <select value={filterWatched} onChange={(e) => setFilterWatched(e.target.value)} className="sort-select">
-            <option value="all">Tous les films</option>
-            <option value="watched">✅ Vus</option>
-            <option value="toWatch">📋 À voir</option>
-          </select>
-          
-          {/* Tri avec Toggle de Direction */}
-          <div className="sort-container">
-            {/* Bouton pour inverser la direction du tri (Asc/Desc) */}
-            <button 
-              onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')} 
-              className="btn-close" 
-              title={sortDirection === 'asc' ? 'Tri descendant' : 'Tri ascendant'}
-              style={{ padding: '0', background: 'transparent', border: 'none', color: '#9ca3af' }}
-            >
-              {sortDirection === 'asc' ? <SortAsc size={20} /> : <SortDesc size={20} />}
-            </button>
-            
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sort-select" style={{ border: 'none', background: 'transparent', height: 'auto' }}>
-              <option value="dateWatched">Date vue</option>
-              <option value="dateAdded">Date ajout</option>
-              <option value="rating">Note</option>
-              <option value="duration">Durée</option> {/* Nouvelle option */}
-              <option value="title">Titre</option>
-              <option value="year">Année</option>
-            </select>
-          </div>
-
-          {/* Vue grille/liste */}
-          <div className="sort-container" style={{ gap: '0', padding: '0' }}>
-            <button 
-              onClick={() => setViewMode('grid')} 
-              className="btn-close"
-              style={{ padding: '8px 12px', background: viewMode === 'grid' ? '#374151' : 'transparent', borderRadius: '8px 0 0 8px', color: viewMode === 'grid' ? 'white' : '#9ca3af' }}
-              title="Vue grille"
-            >
-              <LayoutGrid size={20} />
-            </button>
-            <button 
-              onClick={() => setViewMode('list')} 
-              className="btn-close"
-              style={{ padding: '8px 12px', background: viewMode === 'list' ? '#374151' : 'transparent', borderRadius: '0 8px 8px 0', color: viewMode === 'list' ? 'white' : '#9ca3af' }}
-              title="Vue liste"
-            >
-              <List size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Dashboard */}
-        {showStats && (
-          <div style={{ background: '#1f2937', borderRadius: '16px', padding: '24px', marginBottom: '32px', border: '1px solid #374151' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px' }}>📊 Statistiques & Gestion des données</h2>
-            
-            {/* BLOC IMPORT/EXPORT */}
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
-                {/* Export Button */}
-                <button onClick={handleExportMovies} className="btn btn-primary" style={{ background: '#22c55e', flexGrow: 1 }}>
-                    <Download size={20} />
-                    Exporter les données (.json)
-                </button>
-                
-                {/* Import Button with hidden input */}
-                <label htmlFor="import-file" className="btn btn-primary" style={{ background: '#3b82f6', cursor: 'pointer', flexGrow: 1 }}>
-                    <Upload size={20} />
-                    Importer des données (.json)
-                </label>
-                <input 
-                    type="file" 
-                    id="import-file" 
-                    accept="application/json" 
-                    onChange={handleImportMovies} 
-                    style={{ display: 'none' }} 
-                />
-            </div>
-            
-            {/* Début de la grille des statistiques existantes */}
-            {(() => {
-              const stats = getStats();
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                  <div style={{ background: '#111827', padding: '16px', borderRadius: '8px' }}>
-                    <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Total de films</p>
-                    <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.total}</p>
-                  </div>
-                  <div style={{ background: '#111827', padding: '16px', borderRadius: '8px' }}>
-                    <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Note moyenne</p>
-                    <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.avgRating}/10</p>
-                  </div>
-                  <div style={{ background: '#111827', padding: '16px', borderRadius: '8px' }}>
-                    <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Films vus</p>
-                    <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.watched}</p>
-                  </div>
-                  <div style={{ background: '#111827', padding: '16px', borderRadius: '8px' }}>
-                    <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>À voir</p>
-                    <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.toWatch}</p>
-                  </div>
-
-                  <div style={{ background: '#111827', padding: '16px', borderRadius: '8px' }}>
-                    <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '8px' }}>Répartition par note (Vus)</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.875rem' }}>
-                      <div className="rating-excellent" style={{ background: 'none' }}>⭐ Excellent (8+): {stats.byRating.excellent}</div>
-                      <div className="rating-good" style={{ background: 'none' }}>👍 Bien (6-7.5): {stats.byRating.good}</div>
-                      <div className="rating-average" style={{ background: 'none' }}>😐 Moyen (4-5.5): {stats.byRating.average}</div>
-                      <div className="rating-poor" style={{ background: 'none' }}>👎 Décevant (-4): {stats.byRating.poor}</div>
-                    </div>
-                  </div>
-                  
-                  {stats.byGenre.length > 0 && (
-                    <div style={{ background: '#111827', padding: '16px', borderRadius: '8px', gridColumn: 'span 1' }}>
-                      <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '8px' }}>Genres principaux</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.875rem' }}>
-                        {stats.byGenre.slice(0, 5).map(g => (
-                          <div key={g.name}>{g.name} ({g.count})</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {stats.topMovies.length > 0 && (
-                    <div style={{ background: '#111827', padding: '16px', borderRadius: '8px', gridColumn: 'span 2' }}>
-                      <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '8px' }}>🏆 Top 5 des mieux notés</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.875rem' }}>
-                        {stats.topMovies.map((m, i) => (
-                          <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>{i + 1}. **{m.title}**</span>
-                            <span className={getRatingColor(m.rating)} style={{ padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>{m.rating}/10</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
-        {/* Liste de films */}
-        {sortedAndFilteredMovies.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-state-title">Aucun film trouvé</p>
-            <p className="empty-state-text">Modifiez vos filtres ou votre recherche.</p>
-          </div>
-        ) : viewMode === 'grid' ? (
-          /* Vue Grille */
-          <div className="movies-grid">
-            {sortedAndFilteredMovies.map(movie => (
-              <MovieCard key={movie.id} movie={movie} />
-            ))}
-          </div>
-        ) : (
-          /* Vue Liste */
-          <div className="movies-list">
-            {sortedAndFilteredMovies.map(movie => (
-              <MovieListItem key={movie.id} movie={movie} />
-            ))}
-          </div>
-        )}
+        ))}
       </div>
 
-      {/* Modal Add */}
-      {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Ajouter un film</h2>
-              <button onClick={() => setShowAddModal(false)} className="btn-close">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="modal-body">
+      <style>{`
+        @keyframes float {
+          0%, 100% { 
+            transform: translateY(0px) rotate(0deg);
+            opacity: 0.05;
+          }
+          50% { 
+            transform: translateY(-30px) rotate(15deg);
+            opacity: 0.08;
+          }
+        }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(40px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes slideInLeft {
+          from {
+            opacity: 0;
+            transform: translateX(-50px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(50px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes zoomIn {
+          from {
+            opacity: 0;
+            transform: scale(0.8) rotate(-5deg);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+          }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fadeInUp {
+          animation: fadeInUp 1s ease-out;
+        }
+        .animate-slideInLeft {
+          animation: slideInLeft 0.8s ease-out;
+        }
+        .animate-slideInRight {
+          animation: slideInRight 0.8s ease-out;
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.3s ease-out;
+        }
+        .animate-zoomIn {
+          animation: zoomIn 0.6s ease-out;
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .stagger-1 { animation-delay: 0.1s; }
+        .stagger-2 { animation-delay: 0.2s; }
+        .stagger-3 { animation-delay: 0.3s; }
+        .stagger-4 { animation-delay: 0.4s; }
+        .stagger-5 { animation-delay: 0.5s; }
+        .stagger-6 { animation-delay: 0.6s; }
+      `}</style>
+
+      {/* MODAL IMAGE */}
+      {showImageModal && selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-slate-900/95 backdrop-blur-md animate-fadeIn"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="relative w-full min-w-[280px] max-w-5xl min-h-[300px] max-h-[85vh] animate-scaleIn">
+            {/* Bouton de fermeture */}
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 bg-white text-slate-700 p-2 sm:p-3 rounded-full shadow-2xl hover:bg-slate-100 transition-all z-20 hover:rotate-90 transform duration-300 group"
+              aria-label="Fermer"
+            >
+              <X size={20} className="sm:w-6 sm:h-6" />
+            </button>
+
+            {/* Container de l'image avec dimensions contrôlées */}
+            <div className="relative w-full h-full bg-white rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center">
+              <img
+                src={selectedImage.url}
+                alt={selectedImage.nom}
+                className="max-w-full max-h-[85vh] min-h-[300px] object-contain"
+                onClick={(e) => e.stopPropagation()}
+                style={{ width: 'auto', height: 'auto' }}
+              />
               
-              <input
-                type="text"
-                placeholder="Titre du film"
-                value={newMovie.title}
-                onChange={(e) => setNewMovie({...newMovie, title: e.target.value})}
-                className="form-input"
-              />
-              <input
-                type="text"
-                placeholder="URL de l'affiche (obligatoire)"
-                value={newMovie.poster}
-                onChange={(e) => setNewMovie({...newMovie, poster: e.target.value})}
-                className="form-input"
-              />
-
-              {/* Utilisation de la nouvelle fonction handleNewMovieStatusToggle pour mettre à jour la date */}
-              <StatusButtons 
-                watched={newMovie.watched} 
-                onToggleWatched={handleNewMovieStatusToggle} 
-              />
-              
-              <div className="form-group">
-                <label className="form-label">Date de visionnage</label>
-                <input
-                  type="date"
-                  // Value sera une chaîne vide si on est en mode "À voir", ce qui vide l'input
-                  value={newMovie.dateWatched} 
-                  onChange={(e) => setNewMovie({...newMovie, dateWatched: e.target.value})}
-                  className="form-input"
-                />
+              {/* Overlay avec informations */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/90 via-slate-900/70 to-transparent p-4 sm:p-6">
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-1 drop-shadow-lg">
+                  {selectedImage.nom}
+                </h3>
+                {selectedImage.categorie && (
+                  <p className="text-slate-200 text-xs sm:text-sm drop-shadow-md inline-block bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                    {selectedImage.categorie}
+                  </p>
+                )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <input
-                  type="number"
-                  placeholder="Année (ex: 2024)"
-                  value={newMovie.year}
-                  onChange={(e) => setNewMovie({...newMovie, year: parseInt(e.target.value) || ''})}
-                  className="form-input"
-                />
-                <input
-                  type="text"
-                  placeholder="Durée (ex: 120 min)"
-                  value={newMovie.duration}
-                  onChange={(e) => setNewMovie({...newMovie, duration: e.target.value})}
-                  className="form-input"
-                />
+              {/* Indicateur de clic pour fermer */}
+              <div className="absolute top-4 left-4 bg-black/50 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm hidden sm:block">
+                Cliquez à l'extérieur pour fermer
               </div>
-
-              <input
-                type="text"
-                placeholder="Genre(s) (séparés par une virgule : Action, SF)"
-                value={newMovie.genre}
-                onChange={(e) => setNewMovie({...newMovie, genre: e.target.value})}
-                className="form-input"
-              />
-
-              <input
-                type="text"
-                placeholder="Réalisateur"
-                value={newMovie.director}
-                onChange={(e) => setNewMovie({...newMovie, director: e.target.value})}
-                className="form-input"
-              />
-
-              <input
-                type="text"
-                placeholder="Acteurs principaux"
-                value={newMovie.actors}
-                onChange={(e) => setNewMovie({...newMovie, actors: e.target.value})}
-                className="form-input"
-              />
-
-              <input
-                type="text"
-                placeholder="Plateforme (Netflix, Cinéma...)"
-                value={newMovie.platform}
-                onChange={(e) => setNewMovie({...newMovie, platform: e.target.value})}
-                className="form-input"
-              />
-
-              <div className="form-group">
-                <label className="form-label">Note : {newMovie.rating}/10</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="0.5" // Permet les 0.5, 1.5, etc.
-                  value={newMovie.rating}
-                  onChange={(e) => setNewMovie({...newMovie, rating: parseFloat(e.target.value)})}
-                  className="form-range"
-                />
-                <div className={`rating-display ${getRatingColor(newMovie.rating)}`}>
-                  {newMovie.rating}/10
-                </div>
-              </div>
-
-              <label className="form-label">Versions disponibles</label>
-              <div className="version-buttons">
-                <button
-                  onClick={() => setNewMovie({...newMovie, versions: {...newMovie.versions, VF: !newMovie.versions.VF}})}
-                  className={`btn-version ${newMovie.versions.VF ? 'active btn-version-vf' : ''}`}
-                >
-                  VF
-                </button>
-                <button
-                  onClick={() => setNewMovie({...newMovie, versions: {...newMovie.versions, VO: !newMovie.versions.VO}})}
-                  className={`btn-version ${newMovie.versions.VO ? 'active btn-version-vo' : ''}`}
-                >
-                  VO
-                </button>
-              </div>
-
-              <label className="form-label">Tags (cliquer pour ajouter)</label>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                {predefinedTags.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => toggleNewMovieTag(tag)}
-                    className={`tag-badge ${newMovie.tags.includes(tag) ? 'active' : ''}`}
-                    style={{ background: newMovie.tags.includes(tag) ? '#a78bfa' : '#374151', cursor: 'pointer', border: 'none' }}
-                  >
-                    {tag.charAt(0).toUpperCase() + tag.slice(1)}
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                placeholder="Votre avis (optionnel)"
-                value={newMovie.review}
-                onChange={(e) => setNewMovie({...newMovie, review: e.target.value})}
-                className="form-textarea"
-              />
-              <button onClick={addMovie} className="btn-add">
-                Ajouter le film
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Detail */}
-      {selectedMovie && (
-        <div className="modal-backdrop" onClick={() => setSelectedMovie(null)}>
-          <div className="modal modal-detail" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-content">
-              <img src={selectedMovie.poster} alt={selectedMovie.title} className="modal-poster" />
-              <div className="modal-info">
-                <div className="modal-header">
-                  <h2 className="modal-title">{selectedMovie.title}</h2>
-                  <button onClick={() => setSelectedMovie(null)} className="btn-close">
-                    <X size={24} />
-                  </button>
+      {/* Header */}
+      <header className="fixed top-0 w-full bg-white/95 backdrop-blur-lg shadow-md z-50 border-b-2 border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20 md:h-24">
+            <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => scrollToSection('accueil')}>
+              <div className="relative">
+                <Sparkles className="w-8 h-8 md:w-9 md:h-9 text-amber-600" />
+                <div className="absolute inset-0 w-8 h-8 md:w-9 md:h-9 text-amber-600 animate-ping opacity-20">
+                  <Sparkles className="w-8 h-8 md:w-9 md:h-9" />
                 </div>
+              </div>
+              <h1 className="text-2xl md:text-4xl font-bold text-slate-800 italic tracking-tight">Peramore</h1>
+            </div>
+            
+            <nav className="hidden lg:flex items-center space-x-1">
+              {[
+                { label: 'Accueil', id: 'accueil' },
+                { label: 'Collection', id: 'la-collection' },
+                { label: 'Histoire', id: 'notre-histoire' },
+                { label: 'Galerie', id: 'galerie' },
+                { label: 'Contact', id: 'contact' }
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-slate-700 hover:text-amber-600 hover:bg-slate-50 transition-all duration-300 font-semibold relative group px-5 py-3 rounded-lg text-base"
+                >
+                  {item.label}
+                  <span className="absolute bottom-2 left-5 right-5 h-0.5 bg-amber-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+                </button>
+              ))}
+            </nav>
 
-                {/* StatusButtons gère la mise à jour pour le film sélectionné, updateMovie gère l'effacement/ajout de la date */}
-                <StatusButtons 
-                  watched={selectedMovie.watched} 
-                  onToggleWatched={(updates) => updateMovie(selectedMovie.id, updates)}
-                />
-                
-                <div className="form-group">
-                  <label className="form-label">Date de visionnage</label>
-                  <input
-                    type="date"
-                    // Si dateWatched est null, la valeur devient '', ce qui vide l'input.
-                    value={selectedMovie.dateWatched?.split('T')[0] || ''} 
-                    onChange={(e) => {
-                      setSelectedMovie({...selectedMovie, dateWatched: e.target.value});
-                      // Le fait de fournir une date manuellement empêche updateMovie de la modifier.
-                      updateMovie(selectedMovie.id, {dateWatched: e.target.value});
-                    }}
-                    className="form-input"
-                  />
-                  <p className="form-label" style={{ textAlign: 'right', marginTop: '8px' }}>
-                    Vu le : **{selectedMovie.dateWatched ? formatDate(selectedMovie.dateWatched) : 'N/A'}**
-                  </p>
-                </div>
+            <button 
+              className="lg:hidden hover:bg-slate-100 p-3 rounded-xl transition-all active:scale-95"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X className="w-7 h-7 text-slate-700" /> : <Menu className="w-7 h-7 text-slate-700" />}
+            </button>
+          </div>
+        </div>
 
-                <input
-                  type="text"
-                  placeholder="Titre"
-                  value={selectedMovie.title || ''}
-                  onChange={(e) => {
-                    setSelectedMovie({...selectedMovie, title: e.target.value});
-                    updateMovie(selectedMovie.id, {title: e.target.value});
-                  }}
-                  className="form-input"
-                />
+        {isMenuOpen && (
+          <div className="lg:hidden bg-white border-t border-slate-200 shadow-2xl animate-fadeInUp">
+            <nav className="flex flex-col py-6 px-4 space-y-2 max-w-md mx-auto">
+              {[
+                { label: 'Accueil', id: 'accueil', icon: '🏠' },
+                { label: 'Collection', id: 'la-collection', icon: '✂️' },
+                { label: 'Histoire', id: 'notre-histoire', icon: '📖' },
+                { label: 'Galerie', id: 'galerie', icon: '🖼️' },
+                { label: 'Contact', id: 'contact', icon: '✉️' }
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-slate-700 hover:text-amber-600 hover:bg-amber-50 transition-all text-left font-semibold py-4 px-5 rounded-xl border-2 border-transparent hover:border-amber-200 active:scale-95 text-lg"
+                >
+                  <span className="mr-3 text-xl">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        )}
+      </header>
 
-                <div className="form-group">
-                  <label className="form-label">Note : {selectedMovie.rating}/10</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    step="0.5" // Permet les 0.5, 1.5, etc.
-                    value={selectedMovie.rating}
-                    onChange={(e) => {
-                      const newRating = parseFloat(e.target.value);
-                      setSelectedMovie({...selectedMovie, rating: newRating});
-                      updateMovie(selectedMovie.id, {rating: newRating});
-                    }}
-                    className="form-range"
-                  />
-                  <div className={`rating-display ${getRatingColor(selectedMovie.rating)}`}>
-                    {selectedMovie.rating}/10
+      {/* Section Héro */}
+      <section id="accueil" className="relative min-h-screen flex items-center justify-center pt-16 md:pt-20">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-100 via-blue-50 to-amber-50 opacity-70" />
+        <div className="relative z-10 text-center px-4 max-w-5xl mx-auto">
+          <div className="flex justify-center mb-8 animate-fadeInUp">
+            <div className="relative">
+              <Scissors className="w-20 h-20 md:w-28 md:h-28 text-slate-700 transform -rotate-12" />
+              <Sparkles className="w-12 h-12 text-amber-500 absolute -top-2 -right-2 animate-pulse" />
+            </div>
+          </div>
+          <h2 className="text-5xl md:text-7xl lg:text-8xl font-bold text-slate-800 mb-6 leading-tight animate-fadeInUp stagger-1">
+            L'art du Denim<br />
+            <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-amber-600">Redessiné</span>
+          </h2>
+          <p className="text-xl md:text-2xl text-slate-600 mb-10 max-w-2xl mx-auto animate-fadeInUp stagger-2 font-light">
+            Créations artisanales et uniques à partir de jeans recyclés
+          </p>
+          <button 
+            onClick={() => scrollToSection('la-collection')}
+            className="bg-gradient-to-r from-slate-700 to-slate-800 text-white px-10 py-5 rounded-full text-lg font-semibold hover:from-slate-800 hover:to-slate-900 transition-all transform hover:scale-105 shadow-xl hover:shadow-2xl animate-fadeInUp stagger-3"
+          >
+            DÉCOUVRIR LA COLLECTION
+          </button>
+        </div>
+      </section>
+
+      {/* La Collection - BOUTIQUE */}
+      <section id="la-collection" className="relative py-24 px-4 bg-white" data-animate>
+        <div className="max-w-7xl mx-auto">
+          <div className={`text-center mb-12 ${visibleElements.has('la-collection') ? 'animate-fadeInUp' : 'opacity-0'}`}>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <ShoppingBag className="w-12 h-12 text-amber-600" />
+              <h2 className="text-4xl md:text-6xl font-bold text-slate-800">Notre Boutique</h2>
+            </div>
+            <p className="text-slate-600 mb-8 text-lg">Chaque pièce est confectionnée à la main et possède son propre caractère</p>
+            
+            <div className="flex flex-wrap justify-center gap-3">
+              <button 
+                onClick={() => setSelectedCategory('Tout')} 
+                className={`px-6 py-3 rounded-full font-medium transition-all transform hover:scale-105 ${
+                  selectedCategory === 'Tout' 
+                    ? 'bg-slate-800 text-white shadow-lg' 
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Filter className="w-4 h-4 inline mr-2" /> Tout
+              </button>
+              {categories.map(cat => (
+                <button 
+                  key={cat} 
+                  onClick={() => setSelectedCategory(cat)} 
+                  className={`px-6 py-3 rounded-full font-medium transition-all transform hover:scale-105 ${
+                    selectedCategory === cat 
+                      ? 'bg-slate-800 text-white shadow-lg' 
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="text-center py-20">
+              <div className="inline-block w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
+              <p className="mt-4 text-slate-600">Chargement...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredProducts.map((product, index) => (
+                <div 
+                  key={product.id || index} 
+                  className={`group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3 border border-slate-100 ${
+                    visibleElements.has('la-collection') ? `animate-fadeInUp stagger-${(index % 6) + 1}` : 'opacity-0'
+                  }`}
+                >
+                  <div 
+                    className="relative h-72 bg-gradient-to-br from-blue-100 via-slate-100 to-amber-50 overflow-hidden cursor-pointer"
+                    onClick={() => openImage({ url: product.lien_image, nom: product.nom, categorie: product.categorie })}
+                  >
+                    {product.lien_image ? (
+                      <img 
+                        src={product.lien_image} 
+                        alt={product.nom} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Scissors className="w-24 h-24 text-slate-300 group-hover:rotate-12 transition-transform" />
+                      </div>
+                    )}
+                    <div className="absolute top-4 right-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-2 rounded-full font-bold shadow-lg">
+                      {product.prix}
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold mb-2 text-slate-800 group-hover:text-amber-600 transition-colors">
+                      {product.nom}
+                    </h3>
+                    <p className="text-slate-500 text-sm mb-3">Dimensions: {product.dimension}</p>
+                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-medium">
+                      {product.categorie}
+                    </span>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
 
-                <label className="form-label">Versions regardé</label>
-                <div className="version-buttons">
-                  <button
-                    onClick={() => {
-                      const newVersions = {...(selectedMovie.versions || {}), VF: !(selectedMovie.versions?.VF)};
-                      setSelectedMovie({...selectedMovie, versions: newVersions});
-                      updateMovie(selectedMovie.id, {versions: newVersions});
-                    }}
-                    className={`btn-version ${selectedMovie.versions?.VF ? 'active btn-version-vf' : ''}`}
-                  >
-                    VF
-                  </button>
-                  <button
-                    onClick={() => {
-                      const newVersions = {...(selectedMovie.versions || {}), VO: !(selectedMovie.versions?.VO)};
-                      setSelectedMovie({...selectedMovie, versions: newVersions});
-                      updateMovie(selectedMovie.id, {versions: newVersions});
-                    }}
-                    className={`btn-version ${selectedMovie.versions?.VO ? 'active btn-version-vo' : ''}`}
-                  >
-                    VO
-                  </button>
-                </div>
-                
-                <label className="form-label">Tags</label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {predefinedTags.map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => toggleSelectedMovieTag(tag)}
-                      className={`tag-badge ${selectedMovie.tags?.includes(tag) ? 'active' : ''}`}
-                      style={{ background: selectedMovie.tags?.includes(tag) ? '#a78bfa' : '#374151', cursor: 'pointer', border: 'none' }}
-                    >
-                      {tag.charAt(0).toUpperCase() + tag.slice(1)}
-                    </button>
-                  ))}
-                </div>
+          {!isLoading && filteredProducts.length === 0 && (
+            <div className="text-center py-20">
+              <ShoppingBag className="w-20 h-20 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500 text-lg">Aucun produit disponible pour le moment</p>
+            </div>
+          )}
+        </div>
+      </section>
 
-                <textarea
-                  placeholder="Votre avis..."
-                  value={selectedMovie.review || ''}
-                  onChange={(e) => {
-                    setSelectedMovie({...selectedMovie, review: e.target.value});
-                    updateMovie(selectedMovie.id, {review: e.target.value});
-                  }}
-                  className="form-textarea"
-                />
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <input type="text" placeholder="Année" value={selectedMovie.year || ''} onChange={(e) => updateMovie(selectedMovie.id, {year: parseInt(e.target.value) || ''})} className="form-input" />
-                  <input type="text" placeholder="Durée" value={selectedMovie.duration || ''} onChange={(e) => updateMovie(selectedMovie.id, {duration: e.target.value})} className="form-input" />
-                  <input type="text" placeholder="Genre(s) (séparés par une virgule)" value={selectedMovie.genre || ''} onChange={(e) => updateMovie(selectedMovie.id, {genre: e.target.value})} className="form-input" />
-                  <input type="text" placeholder="Plateforme" value={selectedMovie.platform || ''} onChange={(e) => updateMovie(selectedMovie.id, {platform: e.target.value})} className="form-input" />
-                  <input type="text" placeholder="Réalisateur" value={selectedMovie.director || ''} onChange={(e) => updateMovie(selectedMovie.id, {director: e.target.value})} className="form-input" style={{ gridColumn: 'span 2' }} />
-                  <input type="text" placeholder="Acteurs" value={selectedMovie.actors || ''} onChange={(e) => updateMovie(selectedMovie.id, {actors: e.target.value})} className="form-input" style={{ gridColumn: 'span 2' }} />
+      {/* Notre Histoire */}
+      <section id="notre-histoire" className="relative py-24 px-4 bg-gradient-to-br from-slate-50 to-blue-50" data-animate>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className={`order-2 md:order-1 ${visibleElements.has('notre-histoire') ? 'animate-slideInLeft' : 'opacity-0'}`}>
+              <h2 className="text-4xl md:text-6xl font-bold mb-8 text-slate-800">Notre Histoire</h2>
+              <div className="space-y-6">
+                <p className="text-slate-700 leading-relaxed text-lg">
+                  Derrière Peramore se cache une passion pour la transformation. Convaincue que la mode de demain se trouve dans les trésors d'hier, j'ai décidé de donner une seconde vie au denim.
+                </p>
+                <p className="text-slate-700 leading-relaxed text-lg">
+                  Mon objectif est d'allier l'esthétique intemporelle du jean à une démarche éco-responsable. Chaque création est unique, cousue avec soin et amour dans mon atelier.
+                </p>
+                <div className="flex items-center space-x-4 pt-4">
+                  <div className="w-12 h-1 bg-amber-500 rounded"></div>
+                  <p className="text-slate-600 italic">Fait main avec passion</p>
                 </div>
-
-                <button 
-                  onClick={() => {
-                    if(window.confirm(`Êtes-vous sûr de vouloir supprimer \"${selectedMovie.title}\" ?`)) {
-                      deleteMovie(selectedMovie.id);
-                    }
-                  }}
-                  className="btn-delete"
-                  style={{ marginTop: '16px' }}
-                >
-                  Supprimer le film
-                </button>
+              </div>
+            </div>
+            <div className={`order-1 md:order-2 ${visibleElements.has('notre-histoire') ? 'animate-slideInRight' : 'opacity-0'}`}>
+              <div className="relative">
+                <div className="bg-gradient-to-br from-blue-400 via-slate-300 to-amber-300 rounded-3xl h-96 shadow-2xl overflow-hidden flex items-center justify-center">
+                  <Scissors className="w-40 h-40 text-white opacity-40 transform -rotate-12" />
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </section>
+
+      {/* Galerie - PHOTOS UNIQUEMENT */}
+      <section id="galerie" className="relative py-24 px-4 bg-white" data-animate>
+        <div className="max-w-7xl mx-auto">
+          <div className={`text-center mb-16 ${visibleElements.has('galerie') ? 'animate-fadeInUp' : 'opacity-0'}`}>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Camera className="w-12 h-12 text-blue-600" />
+              <h2 className="text-4xl md:text-6xl font-bold text-slate-800">Galerie Photo</h2>
+            </div>
+            <p className="text-slate-600 text-lg">Nos créations en images</p>
+          </div>
+          
+          {isLoading ? (
+            <div className="text-center py-20">
+              <div className="inline-block w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {galerieItems.map((item, i) => (
+                <div 
+                  key={i}
+                  className={`aspect-square rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+                    visibleElements.has('galerie') ? `animate-zoomIn stagger-${(i % 6) + 1}` : 'opacity-0'
+                  }`}
+                  onClick={() => openImage({ url: item.lien_image, nom: item.nom, categorie: item.categorie })}
+                >
+                  {item.lien_image ? (
+                    <img 
+                      src={item.lien_image} 
+                      alt={item.nom}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-200 via-slate-200 to-amber-200 flex items-center justify-center">
+                      <Camera className="w-16 h-16 text-white opacity-50" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && galerieItems.length === 0 && (
+            <div className="text-center py-20">
+              <Camera className="w-20 h-20 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500 text-lg">Aucune photo disponible pour le moment</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Contact */}
+      <section id="contact" className="relative py-24 px-4 bg-gradient-to-br from-slate-100 to-blue-100" data-animate>
+        <div className="max-w-2xl mx-auto">
+          <div className={`text-center mb-12 ${visibleElements.has('contact') ? 'animate-fadeInUp' : 'opacity-0'}`}>
+            <h2 className="text-4xl md:text-6xl font-bold mb-4 text-slate-800">Contactez-nous</h2>
+            <p className="text-slate-600 text-lg">Une envie de création personnalisée ?</p>
+          </div>
+          
+          <div className={`bg-white rounded-3xl shadow-2xl p-8 md:p-10 border border-slate-200 ${visibleElements.has('contact') ? 'animate-fadeInUp stagger-1' : 'opacity-0'}`}>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-2">Nom</label>
+                <input 
+                  type="text" 
+                  name="name" 
+                  value={formData.name} 
+                  onChange={handleChange} 
+                  className="w-full px-5 py-4 border-2 border-slate-200 rounded-xl outline-none focus:border-amber-500 transition-all" 
+                  placeholder="Votre nom" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-2">Email</label>
+                <input 
+                  type="email" 
+                  name="email" 
+                  value={formData.email} 
+                  onChange={handleChange} 
+                  className="w-full px-5 py-4 border-2 border-slate-200 rounded-xl outline-none focus:border-amber-500 transition-all" 
+                  placeholder="votre@email.com" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-2">Téléphone</label>
+                <input 
+                  type="tel" 
+                  name="phone" 
+                  value={formData.phone} 
+                  onChange={handleChange} 
+                  className="w-full px-5 py-4 border-2 border-slate-200 rounded-xl outline-none focus:border-amber-500 transition-all" 
+                  placeholder="06 12 34 56 78" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-2">Préférence de réponse</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="preferenceContact"
+                      value="email"
+                      checked={formData.preferenceContact === 'email'}
+                      onChange={handleChange}
+                      className="w-5 h-5 text-amber-600"
+                    />
+                    <span className="text-slate-700 font-medium">📧 Email</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="preferenceContact"
+                      value="sms"
+                      checked={formData.preferenceContact === 'sms'}
+                      onChange={handleChange}
+                      className="w-5 h-5 text-amber-600"
+                    />
+                    <span className="text-slate-700 font-medium">📱 SMS/Message</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-2">Votre message</label>
+                <textarea 
+                  name="message" 
+                  value={formData.message} 
+                  onChange={handleChange} 
+                  rows={5} 
+                  className="w-full px-5 py-4 border-2 border-slate-200 rounded-xl outline-none focus:border-amber-500 transition-all resize-none" 
+                  placeholder="Décrivez votre projet..."
+                />
+              </div>
+              {submitStatus === 'success' && <div className="text-green-600 font-bold">✓ Message envoyé !</div>}
+              <button onClick={handleSubmit} disabled={isSubmitting} className="w-full bg-slate-800 text-white py-5 rounded-xl font-semibold hover:bg-slate-900 transition-all transform hover:scale-105 shadow-lg disabled:opacity-50">
+                {isSubmitting ? 'ENVOI EN COURS...' : 'ENVOYER MA DEMANDE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="bg-slate-900 text-white py-16 px-4 text-center">
+        <div className="flex items-center justify-center space-x-3 mb-6"><Sparkles className="w-10 h-10 text-amber-500" /><h3 className="text-3xl font-bold italic">Peramore</h3></div>
+        <p className="text-slate-500 text-sm">© 2024 Peramore. Tous droits réservés.</p>
+      </footer>
     </div>
   );
-}
+};
 
-export default App;
+export default PeramoreWebsite;
