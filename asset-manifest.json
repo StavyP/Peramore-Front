@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/sequence-movie-app/static/css/main.f4ceb26d.css",
-    "main.js": "/sequence-movie-app/static/js/main.2e43d073.js",
-    "static/js/453.f58c7dbe.chunk.js": "/sequence-movie-app/static/js/453.f58c7dbe.chunk.js",
-    "index.html": "/sequence-movie-app/index.html",
-    "main.f4ceb26d.css.map": "/sequence-movie-app/static/css/main.f4ceb26d.css.map",
-    "main.2e43d073.js.map": "/sequence-movie-app/static/js/main.2e43d073.js.map",
-    "453.f58c7dbe.chunk.js.map": "/sequence-movie-app/static/js/453.f58c7dbe.chunk.js.map"
+    "main.css": "/Peramore-Front/static/css/main.f4ceb26d.css",
+    "main.js": "/Peramore-Front/static/js/main.2c13262c.js",
+    "static/js/453.2e7f5566.chunk.js": "/Peramore-Front/static/js/453.2e7f5566.chunk.js",
+    "index.html": "/Peramore-Front/index.html",
+    "main.f4ceb26d.css.map": "/Peramore-Front/static/css/main.f4ceb26d.css.map",
+    "main.2c13262c.js.map": "/Peramore-Front/static/js/main.2c13262c.js.map",
+    "453.2e7f5566.chunk.js.map": "/Peramore-Front/static/js/453.2e7f5566.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.f4ceb26d.css",
-    "static/js/main.2e43d073.js"
+    "static/js/main.2c13262c.js"
   ]
 }
