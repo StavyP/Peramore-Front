@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/Peramore-Front/static/css/main.63e54af3.css",
-    "main.js": "/Peramore-Front/static/js/main.d342a291.js",
+    "main.css": "/Peramore-Front/static/css/main.052c2d09.css",
+    "main.js": "/Peramore-Front/static/js/main.cf5856e6.js",
     "static/js/453.2e7f5566.chunk.js": "/Peramore-Front/static/js/453.2e7f5566.chunk.js",
     "index.html": "/Peramore-Front/index.html",
-    "main.63e54af3.css.map": "/Peramore-Front/static/css/main.63e54af3.css.map",
-    "main.d342a291.js.map": "/Peramore-Front/static/js/main.d342a291.js.map",
+    "main.052c2d09.css.map": "/Peramore-Front/static/css/main.052c2d09.css.map",
+    "main.cf5856e6.js.map": "/Peramore-Front/static/js/main.cf5856e6.js.map",
     "453.2e7f5566.chunk.js.map": "/Peramore-Front/static/js/453.2e7f5566.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.63e54af3.css",
-    "static/js/main.d342a291.js"
+    "static/css/main.052c2d09.css",
+    "static/js/main.cf5856e6.js"
   ]
 }
